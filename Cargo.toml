@@ -1,6 +1,6 @@
 [package]
 name = "timer-wheels"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Cecília Carneiro <cecilia.carneiroesilva@gmail.com>"]
 
 [dependencies]
