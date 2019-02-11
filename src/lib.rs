@@ -17,23 +17,6 @@ pub struct WheelTimer<T> {
     ring: Vec<Vec<T, U4>, U8>,
 }
 
-/// Implementing Iterator trait for `WheelTimer`
-impl<T> Iterator for WheelTimer<T>
-{
-    type Item = Vec<T, U4>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let _size = self.size();
-
-        // if size > 0 {
-        //     Some(self.tick())
-        // } else {
-        //     None
-        // }
-        None
-    }
-}
-
 impl<T> WheelTimer<T> {
     pub fn new() -> WheelTimer<T>
     {
@@ -41,7 +24,8 @@ impl<T> WheelTimer<T> {
         let max_interval = 8;
 
         for _ in 0..max_interval {
-            ring.push(Vec::<T, U4>::new());
+            let mut each_tick = Vec::<T, U4>::new();
+            let _ = ring.push(each_tick);
         }
 
         WheelTimer{
@@ -56,17 +40,24 @@ impl<T> WheelTimer<T> {
         self.size
     }
 
-    pub fn tick(&mut self) -> &Vec<T, U4> {
-        let node = &self.ring[self.current_tick];
+    pub fn tick(&mut self) -> &mut Vec<T, U4> {
+        let node = &mut self.ring[self.current_tick];
         self.current_tick = (self.current_tick + 1) % self.max_interval;
         self.size = self.size - node.len();
         node
     }
 
-    pub fn schedule(&mut self, ticks: usize, value: T) {
+    pub fn clear_node(&mut self) {
+        let previous_tick = if self.current_tick == 0 { self.max_interval } else { (self.current_tick - 1) };
+        let node = &mut self.ring[previous_tick];
+        node.clear();
+    }
+
+    pub fn schedule(&mut self, ticks: usize, value: T) -> Result<(), T> {
         let index = (self.current_tick + ticks) % self.max_interval;
-        self.ring[index].push(value);
+        self.ring[index].push(value)?;
         self.size = self.size + 1;
+        Ok(())
     }
 }
 
@@ -79,7 +70,7 @@ mod tests {
         use crate::WheelTimer;
 
         let mut wt = WheelTimer::new();
-        wt.schedule(0, 1);
+        wt.schedule(0, 1).unwrap();
         let to_run = wt.tick();
         assert_eq!(to_run[0], 1);
     }
@@ -90,7 +81,7 @@ mod tests {
 
         let mut wt = WheelTimer::new();
         let f = || { 2+2 };
-        wt.schedule(0, f);
+        let _ = wt.schedule(0, f);
         assert_eq!(wt.tick()[0](), 4);
     }
 
@@ -99,12 +90,69 @@ mod tests {
         use crate::WheelTimer;
 
         let mut wt = WheelTimer::new();
-        wt.schedule(0, rtfm::export::run(a));
+        let _ = wt.schedule(0, rtfm::export::run(to_call));
 
         wt.tick()[0];
     }
 
-    fn a(){
+    #[test]
+    fn to_call(){
         assert_eq!(true, true);
+    }
+
+    #[test]
+    fn tick_multiples() {
+        use crate::WheelTimer;
+
+        let mut wt = WheelTimer::new();
+
+        wt.schedule(0, 1).unwrap();
+        wt.schedule(3, 2).unwrap();
+
+        {
+            let _tick_1 = wt.tick();
+        }
+
+        {
+            let _tick_2 = wt.tick();
+        }
+
+        {
+            let _tick_3 = wt.tick();
+        }
+
+    }
+
+    #[test]
+    fn clean_schedule_tick() {
+        use crate::WheelTimer;
+
+        let mut wt = WheelTimer::new();
+
+        wt.schedule(0, 1).unwrap();
+        wt.schedule(0, 2).unwrap();
+
+        {
+            let _tick = wt.tick();
+        }
+        {
+            wt.clear_node();
+        }
+    }
+
+    #[test]
+    fn tick_pop() {
+        use crate::WheelTimer;
+
+        let mut wt = WheelTimer::new();
+
+        wt.schedule(0, 1).unwrap();
+        wt.schedule(0, 2).unwrap();
+
+        let tick = wt.tick();
+
+        while let Some(e) = tick.pop() {
+            let _ = e + 1;
+        }
     }
 }
