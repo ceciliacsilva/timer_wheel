@@ -32,7 +32,7 @@ where
         RINGLEN: ArrayLength<Vec<T, TICKLEN>>,
     {
         let mut ring: Vec<_, RINGLEN> = Vec::new();
-        let max_interval = ring.capacity();
+        let max_interval = ring.capacity() - 1;
 
         for _ in 0..max_interval {
             let mut each_tick = Vec::<T, TICKLEN>::new();
