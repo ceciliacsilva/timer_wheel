@@ -7,24 +7,35 @@
 extern crate heapless;
 
 use heapless::Vec;
-use heapless::consts::{U8, U4};
+use heapless::ArrayLength;
 
 /// Fixed ring size
-pub struct TimerWheel<T> {
+pub struct TimerWheel<T, RINGLEN, TICKLEN>
+where
+    TICKLEN: ArrayLength<T>,
+    RINGLEN: ArrayLength<Vec<T, TICKLEN>>,
+{
     max_interval: usize,
     current_tick: usize,
     size: usize,
-    ring: Vec<Vec<T, U4>, U8>,
+    ring: Vec<Vec<T, TICKLEN>, RINGLEN>,
 }
 
-impl<T> TimerWheel<T> {
-    pub fn new() -> TimerWheel<T>
+impl<T, RINGLEN, TICKLEN> TimerWheel<T, RINGLEN, TICKLEN>
+where
+    TICKLEN: ArrayLength<T>,
+    RINGLEN: ArrayLength<Vec<T, TICKLEN>>,
+{
+    pub fn new() -> TimerWheel<T, RINGLEN, TICKLEN>
+    where
+        TICKLEN: ArrayLength<T>,
+        RINGLEN: ArrayLength<Vec<T, TICKLEN>>,
     {
-        let mut ring: Vec<_, U8> = Vec::new();
-        let max_interval = 8;
+        let mut ring: Vec<_, RINGLEN> = Vec::new();
+        let max_interval = ring.capacity();
 
         for _ in 0..max_interval {
-            let mut each_tick = Vec::<T, U4>::new();
+            let mut each_tick = Vec::<T, TICKLEN>::new();
             let _ = ring.push(each_tick);
         }
 
@@ -40,7 +51,10 @@ impl<T> TimerWheel<T> {
         self.size
     }
 
-    pub fn tick(&mut self) -> &mut Vec<T, U4> {
+    pub fn tick(&mut self) -> &mut Vec<T, TICKLEN>
+    where
+        TICKLEN: ArrayLength<T>,
+    {
         let node = &mut self.ring[self.current_tick];
         self.current_tick = (self.current_tick + 1) % self.max_interval;
         self.size = self.size - node.len();
@@ -69,7 +83,7 @@ mod tests {
     fn one_schedule_one_tick() {
         use crate::TimerWheel;
 
-        let mut wt = TimerWheel::new();
+        let mut wt = TimerWheel::<_, heapless::consts::U8, heapless::consts::U4>::new();
         wt.schedule(0, 1).unwrap();
         let to_run = wt.tick();
         assert_eq!(to_run[0], 1);
@@ -79,7 +93,7 @@ mod tests {
     fn schedule_lambda() {
         use crate::TimerWheel;
 
-        let mut wt = TimerWheel::new();
+        let mut wt = TimerWheel::<_, heapless::consts::U8, heapless::consts::U4>::new();
         let f = || { 2+2 };
         let _ = wt.schedule(0, f);
         assert_eq!(wt.tick()[0](), 4);
@@ -89,7 +103,7 @@ mod tests {
     fn on_rtfm() {
         use crate::TimerWheel;
 
-        let mut wt = TimerWheel::new();
+        let mut wt = TimerWheel::<_, heapless::consts::U8, heapless::consts::U4>::new();
         let _ = wt.schedule(0, rtfm::export::run(to_call));
 
         wt.tick()[0];
@@ -104,7 +118,7 @@ mod tests {
     fn tick_multiples() {
         use crate::TimerWheel;
 
-        let mut wt = TimerWheel::new();
+        let mut wt = TimerWheel::<_, heapless::consts::U8, heapless::consts::U4>::new();
 
         wt.schedule(0, 1).unwrap();
         wt.schedule(3, 2).unwrap();
@@ -127,7 +141,7 @@ mod tests {
     fn clean_schedule_tick() {
         use crate::TimerWheel;
 
-        let mut wt = TimerWheel::new();
+        let mut wt = TimerWheel::<_, heapless::consts::U8, heapless::consts::U4>::new();
 
         wt.schedule(0, 1).unwrap();
         wt.schedule(0, 2).unwrap();
@@ -144,7 +158,7 @@ mod tests {
     fn tick_pop() {
         use crate::TimerWheel;
 
-        let mut wt = TimerWheel::new();
+        let mut wt = TimerWheel::<_, heapless::consts::U8, heapless::consts::U4>::new();
 
         wt.schedule(0, 1).unwrap();
         wt.schedule(0, 2).unwrap();
