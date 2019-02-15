@@ -68,6 +68,9 @@ where
     }
 
     pub fn schedule(&mut self, ticks: usize, value: T) -> Result<(), T> {
+        if ticks >= self.max_interval {
+            return Err(value);
+        }
         let index = (self.current_tick + ticks) % self.max_interval;
         self.ring[index].push(value)?;
         self.size = self.size + 1;
@@ -168,5 +171,16 @@ mod tests {
         while let Some(e) = tick.pop() {
             let _ = e + 1;
         }
+    }
+
+    #[test]
+    fn out_of_range() {
+        use crate::TimerWheel;
+
+        let mut wt = TimerWheel::<_, heapless::consts::U2, heapless::consts::U1>::new();
+
+        if let Err(4) = wt.schedule(4, 0){
+        }
+
     }
 }
